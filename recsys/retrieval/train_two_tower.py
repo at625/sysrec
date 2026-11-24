@@ -90,7 +90,7 @@ class TwoTowerRecommender:
             sort_keys=True,
         )
         h = hashlib.sha1(key.encode()).hexdigest()[:10]
-        return self.checkpoint_dir / f"{self.name}_cut{ctx.cutoff}_{h}.pt"
+        return self.checkpoint_dir / f"two_tower_cut{ctx.cutoff}_{h}.pt"  # same config -> same file
 
     def fit(self, ctx: FitContext) -> None:
         c = self.cfg

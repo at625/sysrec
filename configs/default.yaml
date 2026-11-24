@@ -28,7 +28,7 @@ baselines:
   select_metric: recall@100
 
 two_tower:
-  epochs: 3
+  epochs: 5                   # val sweep: 5 > 3 epochs (results/m2_tuning.json)
   batch_size: 4096
   lr: 0.001
   train_days: 1095            # targets from the last 3 years before the cutoff (history uses all years)
