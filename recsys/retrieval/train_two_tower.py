@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +36,20 @@ class TrainConfig:
     model: TwoTowerConfig = field(default_factory=TwoTowerConfig)
 
 
+def train_config_from_section(
+    section: dict, seed: int, overrides: dict | None = None
+) -> TrainConfig:
+    """Build a TrainConfig from the `two_tower` YAML section (+ optional ablation overrides)."""
+    import copy
+
+    s = copy.deepcopy(section)
+    for key in ("ablations", "windows", "ablation_windows"):
+        s.pop(key, None)
+    s.update(overrides or {})
+    model = TwoTowerConfig(**s.pop("model", {}))
+    return TrainConfig(**s, model=model, seed=seed)
+
+
 def dense_features(n_before: np.ndarray, mean_before: np.ndarray) -> np.ndarray:
     return np.stack([np.log1p(n_before) / 5.0, mean_before / 5.0], axis=1).astype(np.float32)
 
@@ -61,6 +77,21 @@ class TwoTowerRecommender:
             pos = pos[seq.ts >= cutoff - self.cfg.train_days * DAY]
         return pos
 
+    def _checkpoint_path(self, ctx: FitContext) -> Path | None:
+        """Checkpoint file keyed by cutoff + a hash of everything that changes the trained model."""
+        if self.checkpoint_dir is None:
+            return None
+        key = json.dumps(
+            {
+                "train": dataclasses.asdict(self.cfg) | {"log_every": None, "device": None},
+                "data": dataclasses.asdict(ctx.cfg.data),
+                "cutoff": ctx.cutoff,
+            },
+            sort_keys=True,
+        )
+        h = hashlib.sha1(key.encode()).hexdigest()[:10]
+        return self.checkpoint_dir / f"{self.name}_cut{ctx.cutoff}_{h}.pt"
+
     def fit(self, ctx: FitContext) -> None:
         c = self.cfg
         torch.manual_seed(c.seed)
@@ -79,10 +110,24 @@ class TwoTowerRecommender:
 
         model = TwoTower(ctx.n_users, ctx.n_items, self.item_feats, c.model).to(dev)
         opt = torch.optim.Adam(model.parameters(), lr=c.lr, weight_decay=c.weight_decay)
+        ckpt_path = self._checkpoint_path(ctx)
+        first_epoch = 0
+        if ckpt_path is not None and ckpt_path.exists():
+            # Resume (or reuse a finished run) when config, data and cutoff match exactly.
+            ck = torch.load(ckpt_path, map_location=dev, weights_only=False)
+            model.load_state_dict(ck["model"])
+            opt.load_state_dict(ck["optimizer"])
+            self.history_log = ck["history_log"]
+            first_epoch = ck["epoch"] + 1
+            rng = np.random.default_rng([c.seed, first_epoch])
+            print(
+                f"  [{self.name}] loaded checkpoint {ckpt_path.name} (epoch {ck['epoch']})",
+                flush=True,
+            )
         user_start = seq.start[seq.users]
         dense_all = dense_features(seq.n_ratings_before, seq.ratings_mean_before)
         self.train_info = {"examples": int(len(ex)), "device": str(dev)}
-        for epoch in range(c.epochs):
+        for epoch in range(first_epoch, c.epochs):
             model.train()
             perm = rng.permutation(ex)
             t0, losses = time.perf_counter(), []
@@ -125,15 +170,17 @@ class TwoTowerRecommender:
             }
             self.history_log.append(info)
             print(f"  [{self.name}] epoch {epoch} done: {info}", flush=True)
-            if self.checkpoint_dir is not None:
-                self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            if ckpt_path is not None:
+                ckpt_path.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(
                     {
                         "model": model.state_dict(),
+                        "optimizer": opt.state_dict(),
                         "epoch": epoch,
+                        "history_log": self.history_log,
                         "train_config": dataclasses.asdict(c),
                     },
-                    self.checkpoint_dir / f"{self.name}_cut{ctx.cutoff}.pt",
+                    ckpt_path,
                 )
         self.train_info["train_seconds"] = time.perf_counter() - t_start
         self.model = model.eval()

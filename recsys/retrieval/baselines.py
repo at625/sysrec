@@ -41,8 +41,8 @@ class PopularityRecommender:
 class ALSRecommender:
     """Implicit ALS (Hu, Koren, Volinsky 2008) via the `implicit` library on positive interactions.
 
-    Confidence = 1 + alpha * 1[positive]. Users without positives in history fall back to
-    `fallback` (recent popularity), as do cold users.
+    Confidence = 1 + alpha * 1[positive]. Users without positives in the (optionally recent-only)
+    training history fall back to `fallback` (recent popularity), as do cold users.
     """
 
     name = "als"
@@ -55,10 +55,16 @@ class ALSRecommender:
         iterations: int = 15,
         fallback_days: int = 30,
         seed: int = 0,
+        since_days: int | None = None,
     ) -> None:
         self.params = dict(
-            factors=factors, regularization=regularization, alpha=alpha, iterations=iterations
+            factors=factors,
+            regularization=regularization,
+            alpha=alpha,
+            iterations=iterations,
+            since_days=since_days,
         )
+        self.since_days = since_days
         self.fallback = PopularityRecommender(days=fallback_days)
         self.seed = seed
 
@@ -66,6 +72,8 @@ class ALSRecommender:
         from implicit.als import AlternatingLeastSquares
 
         pos = ctx.positives
+        if self.since_days is not None:  # train only on recent positives (tastes and catalog drift)
+            pos = pos.filter(pl.col("ts") >= ctx.cutoff - self.since_days * DAY)
         m = sp.csr_matrix(
             (
                 np.ones(pos.height, dtype=np.float32),

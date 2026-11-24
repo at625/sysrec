@@ -6,16 +6,17 @@ test window (train + val). Writes results/m1_baselines.json.
 
 from __future__ import annotations
 
-import dataclasses
 import os
 
-from _common import base_parser, config_from
-from recsys.data.split import windows
-from recsys.eval.harness import KS, build_context, evaluate
-from recsys.retrieval.baselines import ALSRecommender, PopularityRecommender
-from recsys.utils.repro import PeakMemory, set_seed, write_result
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")  # implicit's ALS does its own threading
 
-os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")  # implicit recommends this for its own threading
+import dataclasses  # noqa: E402
+
+from _common import base_parser, config_from
+from recsys.data.split import windows  # noqa: E402
+from recsys.eval.harness import KS, build_context, evaluate  # noqa: E402
+from recsys.retrieval.baselines import ALSRecommender, PopularityRecommender  # noqa: E402
+from recsys.utils.repro import PeakMemory, set_seed, write_result  # noqa: E402
 
 
 def main() -> None:

@@ -6,7 +6,6 @@ and evaluated with the M1 harness. Writes results/m2_two_tower.json.
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 
 import numpy as np
@@ -15,19 +14,8 @@ from _common import base_parser, config_from
 from recsys.data.split import windows
 from recsys.eval.harness import build_context, evaluate
 from recsys.retrieval.features import item_features
-from recsys.retrieval.train_two_tower import TrainConfig, TwoTowerRecommender
-from recsys.retrieval.two_tower import TwoTowerConfig
+from recsys.retrieval.train_two_tower import TwoTowerRecommender, train_config_from_section
 from recsys.utils.repro import PeakMemory, set_seed, write_result
-
-
-def make_train_config(section: dict, seed: int, overrides: dict | None = None) -> TrainConfig:
-    s = copy.deepcopy(section)
-    s.pop("ablations", None)
-    s.pop("windows", None)
-    s.pop("ablation_windows", None)
-    s.update(overrides or {})
-    model = TwoTowerConfig(**s.pop("model", {}))
-    return TrainConfig(**s, model=model, seed=seed)
 
 
 def main() -> None:
@@ -55,7 +43,7 @@ def main() -> None:
             for name, ov in variants.items():
                 if name != "two_tower" and wname not in abl_windows:
                     continue
-                tc = make_train_config(sec, cfg.seed, ov)
+                tc = train_config_from_section(sec, cfg.seed, ov)
                 out["train_configs"][name] = dataclasses.asdict(tc)
                 rec = TwoTowerRecommender(
                     feats, tc, name=name, checkpoint_dir=cfg.artifacts / "checkpoints"
@@ -76,7 +64,15 @@ def main() -> None:
                     flush=True,
                 )
                 if name == "two_tower":
+                    from recsys.data.split import eval_targets
+
                     np.save(cfg.artifacts / f"two_tower_item_emb_{w.start}.npy", rec.item_emb)
+                    ev_users = eval_targets(cfg, w)["user_idx"].to_numpy()
+                    ev_users = ev_users[rec.has_pos[ev_users]]
+                    np.save(
+                        cfg.artifacts / f"two_tower_user_emb_{w.start}.npy",
+                        rec.user_embeddings(ev_users),
+                    )
     out["peak_rss_gb"] = round(pm.peak_gb, 2)
     out["wall_seconds"] = round(pm.seconds, 1)
     write_result(cfg.results / args.out, out, cfg)

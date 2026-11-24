@@ -22,5 +22,42 @@ baselines:
     - {factors: 128, regularization: 0.05, alpha: 10.0}
     - {factors: 128, regularization: 0.5, alpha: 20.0}
     - {factors: 256, regularization: 0.5, alpha: 20.0}
+    - {factors: 128, regularization: 0.5, alpha: 20.0, since_days: 1095}
+    - {factors: 128, regularization: 0.5, alpha: 20.0, since_days: 365}
   als_iterations: 15
   select_metric: recall@100
+
+two_tower:
+  epochs: 3
+  batch_size: 4096
+  lr: 0.001
+  train_days: 1095            # targets from the last 3 years before the cutoff (history uses all years)
+  logq: true
+  uniform_negatives: 0
+  log_every: 200
+  model: {dim: 64, id_dim: 64, hidden: 256, history_len: 50, temperature: 0.05, dropout: 0.1, use_user_id: true}
+  ablations:
+    no_logq: {logq: false}
+    mixed_negatives: {uniform_negatives: 4096}
+  ablation_windows: [val, test]
+
+faiss:
+  ivf_nlist: [256, 1024]
+  ivf_nprobe: [1, 4, 16, 64]
+  hnsw_M: [32]
+  hnsw_ef: [16, 32, 64, 128, 256]
+
+ranking:
+  candidates: 200             # retrieval top-K passed to the ranker
+  label_days: 91              # ranker trained on the 91 days before each eval window
+  max_train_users: 20000      # cap on training users (examples = users x candidates)
+  lgbm: {num_rounds: 400, learning_rate: 0.05, num_leaves: 63}
+  dcn: {epochs: 6, batch_size: 4096, lr: 0.001, n_cross: 3, hidden: [256, 128], dropout: 0.1,
+        rating_loss_weight: 0.5, rating_weight: 0.2, use_item_id: false}
+  rating_weight_grid: [0.0, 0.1, 0.2, 0.5, 1.0]
+  ablation_groups:
+    retrieval: [retrieval_score, retrieval_rank, als_score]
+    item_popularity: [i_n_ratings, i_n_pos, i_pos_7d, i_pos_30d, i_pos_365d]
+    item_quality_age: [i_avg_rating_smoothed, i_days_since_first_rating, i_release_age_years]
+    user_activity: [u_n_ratings, u_n_pos, u_mean_rating, u_days_since_last, u_days_since_first, u_n_last30d]
+    user_item_genre: [x_genre_affinity_mean, x_genre_affinity_max, x_days_since_similar]

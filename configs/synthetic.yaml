@@ -27,3 +27,13 @@ two_tower:
   ablations:
     no_logq: {logq: false}
     mixed_negatives: {uniform_negatives: 64}
+
+ranking:
+  candidates: 50
+  label_days: 60
+  max_train_users: 1000
+  lgbm: {num_rounds: 30, learning_rate: 0.1, num_leaves: 7, min_data_in_leaf: 5}
+  dcn: {epochs: 2, batch_size: 256, lr: 0.003, n_cross: 2, hidden: [32], dropout: 0.0}
+  rating_weight_grid: [0.0, 0.2]
+  ablation_groups:
+    retrieval: [retrieval_score, retrieval_rank, als_score]
