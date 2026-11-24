@@ -46,6 +46,10 @@ def main() -> None:
     out_dir = cfg.artifacts / "ranking"
     out_dir.mkdir(parents=True, exist_ok=True)
     results: dict = {}
+    selected_rw = None
+    if args.windows == ["test"]:  # test-only rerun: reuse the weight chosen on val
+        prev = json.loads((cfg.results / "m3_ranking.json").read_text())
+        selected_rw = prev["val"]["dcn"]["rating_weight"]
     with PeakMemory() as pm:
         for wname in args.windows:
             w = windows(cfg)[wname]
@@ -112,15 +116,33 @@ def main() -> None:
             t1 = time.perf_counter()
             dcn.fit(train_df)
             res["dcn_train_log"] = dcn.log
+            fit_s = time.perf_counter() - t1
             p_pos, p_rating = dcn.predict_heads(eval_df)
+            grid_lists = {}
             for rw in sec["rating_weight_grid"]:
-                lst = rerank_lists(eval_df, p_pos + rw * p_rating / 5.0, ev_users, K)
-                res[f"dcn_rw{rw}"] = metrics_for(lst, targets)
-                if rw == dcfg.rating_weight:
-                    lists["dcn"] = lst
-            res["dcn"] = res[f"dcn_rw{dcfg.rating_weight}"] | {
-                "fit_seconds": time.perf_counter() - t1
+                grid_lists[rw] = rerank_lists(eval_df, p_pos + rw * p_rating / 5.0, ev_users, K)
+                res[f"dcn_rw{rw}"] = metrics_for(grid_lists[rw], targets)
+            # The head-combination weight is chosen on val and reused unchanged for test.
+            if selected_rw is None:
+                selected_rw = max(
+                    sec["rating_weight_grid"], key=lambda rw: res[f"dcn_rw{rw}"]["ndcg@10"]
+                )
+            dcfg.rating_weight = selected_rw
+            lists["dcn"] = grid_lists[selected_rw]
+            res["dcn"] = res[f"dcn_rw{selected_rw}"] | {
+                "fit_seconds": fit_s,
+                "rating_weight": selected_rw,
+                "rating_weight_selected_on": "val",
             }
+            # Multi-task ablation: same model trained without the rating loss.
+            single = DCNRanker(
+                dataclasses.replace(dcfg, rating_loss_weight=0.0, rating_weight=0.0),
+                n_items=stage.ctx.n_items,
+            )
+            single.fit(train_df)
+            res["dcn_single_task"] = metrics_for(
+                rerank_lists(eval_df, single.predict(eval_df), ev_users, K), targets
+            )
             rated = eval_df.filter(pl.col("label_rating").is_not_null())
             if rated.height:
                 _, pr = dcn.predict_heads(rated)
