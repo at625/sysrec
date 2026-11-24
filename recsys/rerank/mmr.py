@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import polars as pl
 
 
 def mmr(
@@ -67,3 +68,28 @@ def intra_list_diversity(lists: np.ndarray, item_emb: np.ndarray) -> float:
 def genre_coverage(lists: np.ndarray, item_genres: np.ndarray) -> float:
     """Mean over users of (#distinct genres in the list / #genres)."""
     return float(np.mean([(item_genres[row].sum(0) > 0).mean() for row in lists]))
+
+
+def rerank_all(
+    df: pl.DataFrame,
+    users: np.ndarray,
+    score_col: str,
+    emb: np.ndarray,
+    k: int,
+    lam: float,
+    genres: np.ndarray,
+    cap: int | None,
+) -> np.ndarray:
+    """MMR-rerank every user's candidates (ordered by `score_col` desc, ties by item index)."""
+    g = (
+        df.sort(["user_idx", score_col, "item_idx"], descending=[False, True, False])
+        .group_by("user_idx", maintain_order=True)
+        .agg("item_idx", score_col)
+    )
+    m = {
+        u: (np.array(i), np.array(s))
+        for u, i, s in zip(
+            g["user_idx"].to_list(), g["item_idx"].to_list(), g[score_col].to_list(), strict=True
+        )
+    }
+    return np.stack([mmr(*m[u], emb, k, lam, genres, cap) for u in users])

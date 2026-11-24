@@ -1,0 +1,32 @@
+# One command: `docker compose up --build` (after `python scripts/build_serving.py` created artifacts/serving).
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory", "1500mb", "--maxmemory-policy", "noeviction", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+  loader:  # one-shot: pushes the snapshot's user/item features into Redis, then exits
+    build:
+      context: .
+      network: host
+      args: {HTTPS_PROXY: "${DOCKER_BUILD_HTTPS_PROXY:-}"}
+    image: sysrec-api
+    command: ["python", "-m", "recsys.serving.load", "--snapshot", "/snapshot", "--redis", "redis://redis:6379/0"]
+    volumes: ["./artifacts/serving:/snapshot:ro"]
+    depends_on: {redis: {condition: service_healthy}}
+  api:
+    image: sysrec-api
+    environment:
+      INDEX: "${INDEX:-hnsw}"
+      CACHE_ITEM_FEATURES: "${CACHE_ITEM_FEATURES:-1}"
+    volumes: ["./artifacts/serving:/snapshot:ro"]
+    ports: ["8000:8000"]
+    depends_on:
+      redis: {condition: service_healthy}
+      loader: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      retries: 30

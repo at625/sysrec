@@ -23,6 +23,9 @@ def main() -> None:
     p.add_argument("--only", nargs="*", help="only these variants (main = two_tower)")
     p.add_argument("--windows", nargs="*", default=None)
     p.add_argument("--out", default="m2_two_tower.json")
+    p.add_argument(
+        "--tuning", action="store_true", help="run two_tower.tuning variants on val only"
+    )
     args = p.parse_args()
     cfg = config_from(args)
     set_seed(cfg.seed)
@@ -30,6 +33,10 @@ def main() -> None:
     variants = {"two_tower": {}} | {
         f"two_tower_{k}": v for k, v in sec.get("ablations", {}).items()
     }
+    if args.tuning:
+        variants = {"two_tower": {}} | {f"tune_{k}": v for k, v in sec.get("tuning", {}).items()}
+        args.windows = ["val"]
+        args.out = "m2_tuning.json"
     if args.only:
         variants = {k: v for k, v in variants.items() if k in args.only}
     abl_windows = set(sec.get("ablation_windows", ["val", "test"]))

@@ -40,6 +40,11 @@ two_tower:
     no_logq: {logq: false}
     mixed_negatives: {uniform_negatives: 4096}
   ablation_windows: [val, test]
+  tuning:                     # val-only sweep (results/m2_tuning.json); winners are folded into the main config
+    epochs5: {epochs: 5}
+    six_years_targets: {train_days: 2190}
+    temp0.1: {model: {dim: 64, id_dim: 64, hidden: 256, history_len: 50, temperature: 0.1, dropout: 0.1, use_user_id: true}}
+    no_user_id: {model: {dim: 64, id_dim: 64, hidden: 256, history_len: 50, temperature: 0.05, dropout: 0.1, use_user_id: false}}
 
 faiss:
   ivf_nlist: [256, 1024]

@@ -17,33 +17,9 @@ import polars as pl  # noqa: E402
 from _common import base_parser, config_from  # noqa: E402
 from recsys.data.split import eval_targets, windows  # noqa: E402
 from recsys.eval.metrics import catalog_coverage, ranking_metrics  # noqa: E402
-from recsys.rerank.mmr import genre_coverage, intra_list_diversity, mmr  # noqa: E402
+from recsys.rerank.mmr import genre_coverage, intra_list_diversity, rerank_all  # noqa: E402
 from recsys.retrieval.features import item_features  # noqa: E402
 from recsys.utils.repro import write_result  # noqa: E402
-
-
-def rerank_all(
-    df: pl.DataFrame,
-    users: np.ndarray,
-    score_col: str,
-    emb: np.ndarray,
-    k: int,
-    lam: float,
-    genres: np.ndarray,
-    cap: int | None,
-) -> np.ndarray:
-    g = (
-        df.sort(["user_idx", score_col], descending=[False, True])
-        .group_by("user_idx", maintain_order=True)
-        .agg("item_idx", score_col)
-    )
-    m = {
-        u: (np.array(i), np.array(s))
-        for u, i, s in zip(
-            g["user_idx"].to_list(), g["item_idx"].to_list(), g[score_col].to_list(), strict=True
-        )
-    }
-    return np.stack([mmr(*m[u], emb, k, lam, genres, cap) for u in users])
 
 
 def evaluate_lists(lists, targets, emb, genres, n_items) -> dict[str, float]:

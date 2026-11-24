@@ -43,7 +43,7 @@ def train_config_from_section(
     import copy
 
     s = copy.deepcopy(section)
-    for key in ("ablations", "windows", "ablation_windows"):
+    for key in ("ablations", "windows", "ablation_windows", "tuning"):
         s.pop(key, None)
     s.update(overrides or {})
     model = TwoTowerConfig(**s.pop("model", {}))

@@ -16,23 +16,8 @@ import torch.nn.functional as F
 from torch import nn
 
 from recsys.ranking.data import FEATURES
+from recsys.ranking.transform import LOG_FEATURES, transform_features  # noqa: F401
 from recsys.utils.device import get_device
-
-LOG_FEATURES = {
-    "u_n_ratings",
-    "u_n_pos",
-    "u_n_last30d",
-    "i_n_ratings",
-    "i_n_pos",
-    "i_pos_7d",
-    "i_pos_30d",
-    "i_pos_365d",
-    "retrieval_rank",
-    "u_days_since_last",
-    "u_days_since_first",
-    "i_days_since_first_rating",
-    "x_days_since_similar",
-}
 
 
 class CrossLayer(nn.Module):
@@ -107,15 +92,9 @@ class DCNRanker:
         self.log: list[dict] = []
 
     def _matrix(self, df: pl.DataFrame) -> np.ndarray:
-        cols = []
-        for f in self.features:
-            c = df[f].cast(pl.Float32).to_numpy().copy()
-            missing = np.isnan(c)
-            if f in LOG_FEATURES:
-                c = np.sign(c) * np.log1p(np.abs(c))
-            cols.append(np.where(missing, 0.0, c))
-            cols.append(missing.astype(np.float32))  # explicit missing indicator
-        return np.stack(cols, 1).astype(np.float32)
+        return transform_features(
+            {f: df[f].cast(pl.Float32).to_numpy() for f in self.features}, self.features
+        )
 
     def fit(self, train: pl.DataFrame) -> None:
         c = self.cfg

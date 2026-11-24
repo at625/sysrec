@@ -1,0 +1,141 @@
+{
+  "meta": {
+    "dataset": "MovieLens-32M (ml-32m.zip, md5 d472be332d4daa821edc399621853b57)",
+    "split": {
+      "val_start": 1680307200,
+      "test_start": 1688169600,
+      "test_end": 1697155200,
+      "positive_threshold": 4.0,
+      "user_fraction": 1.0
+    },
+    "seed": 42,
+    "config": "configs/default.yaml",
+    "git_commit": "a1daca93fb2e2bfd4f8a693902e6e9b27b83f6ef",
+    "hardware": {
+      "platform": "Linux-6.18.44-fc-v819-x86_64-with-glibc2.39",
+      "machine": "x86_64",
+      "cpu_count": 4,
+      "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+      "ram_gb": 15.7,
+      "cuda": null,
+      "mps": false
+    },
+    "libraries": {
+      "python": "3.11.18",
+      "torch": "2.15.0",
+      "polars": "2.2.0",
+      "numpy": "2.4.6",
+      "faiss-cpu": "1.16.0",
+      "lightgbm": "4.7.0",
+      "implicit": "0.7.3",
+      "onnxruntime": "1.32.0",
+      "scikit-learn": "1.9.1",
+      "sentence-transformers": "6.3.0",
+      "fastapi": "0.165.0",
+      "redis": "8.2.0"
+    },
+    "timestamp_utc": "2026-11-24T21:02:57Z"
+  },
+  "val": {
+    "two_tower": {
+      "model": "two_tower",
+      "window": "val",
+      "metrics": {
+        "recall@10": 0.07414444379776955,
+        "ndcg@10": 0.1443688536594808,
+        "hitrate@10": 0.4443081452404318,
+        "mrr@10": 0.20816081748368304,
+        "recall@50": 0.2161010363740767,
+        "ndcg@50": 0.16442190897823597,
+        "hitrate@50": 0.6611874386653582,
+        "mrr@50": 0.2188773700600845,
+        "recall@100": 0.31189878112942043,
+        "ndcg@100": 0.1899601081358893,
+        "hitrate@100": 0.7377330716388616,
+        "mrr@100": 0.21995206448498067,
+        "recall@500": 0.6058803277692739,
+        "ndcg@500": 0.2740218861784355,
+        "hitrate@500": 0.8864082433758587,
+        "mrr@500": 0.2207427459852955,
+        "coverage@10": 0.03235713877947137,
+        "popbias@10": 23240.48876349362,
+        "coverage@50": 0.07037734771935834,
+        "popbias@50": 19056.950122669285,
+        "coverage@100": 0.10065650510932238,
+        "popbias@100": 17430.81603287537,
+        "coverage@500": 0.259131129759662,
+        "popbias@500": 11992.224287046123
+      },
+      "metrics_warm": {
+        "recall@10": 0.07198255276587567,
+        "ndcg@10": 0.07854882919292215,
+        "hitrate@10": 0.3117214947301182,
+        "mrr@10": 0.1433756394072587,
+        "recall@50": 0.20527856212590354,
+        "ndcg@50": 0.11429650940625972,
+        "hitrate@50": 0.5640370488661769,
+        "mrr@50": 0.15570681896813401,
+        "recall@100": 0.29148066217078206,
+        "ndcg@100": 0.1381910678600599,
+        "hitrate@100": 0.6620887895241137,
+        "mrr@100": 0.1570830149750531,
+        "recall@500": 0.5717496799660636,
+        "ndcg@500": 0.20431498181072671,
+        "hitrate@500": 0.8530820824017885,
+        "mrr@500": 0.15809606699905465
+      },
+      "n_users": 4076,
+      "n_warm": 3131,
+      "fit_seconds": 426.4296744540002,
+      "recommend_seconds": 2.2869019170002503,
+      "epochs": [
+        {
+          "epoch": 0,
+          "loss": 7.805093239678277,
+          "seconds": 140.3958276469998
+        },
+        {
+          "epoch": 1,
+          "loss": 7.266940069198609,
+          "seconds": 138.43213222199984
+        },
+        {
+          "epoch": 2,
+          "loss": 7.076801011827257,
+          "seconds": 134.82050876099993
+        }
+      ],
+      "train_info": {
+        "examples": 1844386,
+        "device": "cpu",
+        "train_seconds": 425.3584990070003
+      }
+    }
+  },
+  "test": {},
+  "train_configs": {
+    "two_tower": {
+      "epochs": 3,
+      "batch_size": 4096,
+      "lr": 0.001,
+      "weight_decay": 0.0,
+      "train_days": 1095,
+      "logq": true,
+      "uniform_negatives": 0,
+      "device": "auto",
+      "seed": 42,
+      "log_every": 200,
+      "model": {
+        "dim": 64,
+        "id_dim": 64,
+        "hidden": 256,
+        "history_len": 50,
+        "temperature": 0.05,
+        "dropout": 0.1,
+        "use_user_id": true
+      }
+    }
+  },
+  "peak_rss_gb": 5.82,
+  "wall_seconds": 431.0
+}
