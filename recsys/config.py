@@ -50,6 +50,12 @@ class Config:
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    @property
+    def figures(self) -> Path:
+        p = Path(self.sections.get("figures_dir", "docs/figures"))
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
     def section(self, name: str) -> dict[str, Any]:
         return dict(self.sections.get(name, {}))
 

@@ -35,3 +35,37 @@ declined over time, so confidence intervals matter; M6 reports bootstrap CIs.
 
 **Subsampling.** `data.user_fraction` keeps a stable hash-based user subset, so every model sees the
 same users if a step has to be scaled down.
+
+## M1: Evaluation harness and baselines
+
+**What.** `recsys/eval/metrics.py` implements Recall, NDCG, HitRate and MRR at K in {10, 50, 100, 500},
+catalog coverage, and popularity bias (mean history-popularity of recommended items).
+`recsys/eval/harness.py` fits a model on everything before a window's start, scores the **full
+catalog** (87,585 items) for each evaluation user, masks every item the user interacted with before
+the window, and takes the top K. Metric definitions are spelled out in the module docstring and
+unit-tested against hand-computed examples (`tests/test_metrics.py`).
+
+**Why full-catalog.** Sampled metrics (rank the target among 100 random negatives) change the
+ordering of models, not just the scale (Krichene & Rendle 2020). Scoring 87k items for ~5k users is
+cheap, so there is no reason to sample.
+
+**Baselines.**
+- Global popularity: positives over all history.
+- Recent popularity: positives in the last N days before the cutoff; N in {7, 30, 90, 365} picked on
+  val (30 days won).
+- ALS (implicit library, confidence weighting on positives). Grid over factors, regularisation,
+  alpha, and **how much history to train on**. Training on only the last 3 years beat training on
+  all 28 years (val Recall@100 0.289 vs 0.277), because tastes and the catalog drift: a model fit
+  mostly on 1990s-2010s ratings under-weights what people watch in 2023.
+
+**Finding worth knowing.** Under a global time split, recent popularity is a very strong baseline,
+and on test ALS only ties it on Recall@100 and loses on NDCG@10. This is a well-known effect of
+realistic temporal evaluation (much of the next-quarter activity goes to new and trending titles),
+and it is the bar the two-tower model has to clear. ALS does recommend far less popular items
+(popularity bias and coverage in `results/m1_baselines.json`).
+
+**Cold users** (no positives before the window) get the recent-popularity list from every model, so
+model differences come from warm users; `metrics_warm` in the results isolates them.
+
+**Protocol.** Hyperparameters are chosen on val (models fit on train). For test, the chosen config is
+refit on train + val. Nothing is tuned on test.

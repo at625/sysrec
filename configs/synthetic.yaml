@@ -37,3 +37,10 @@ ranking:
   rating_weight_grid: [0.0, 0.2]
   ablation_groups:
     retrieval: [retrieval_score, retrieval_rank, als_score]
+
+rerank:
+  lambdas: [1.0, 0.5]
+  genre_caps: [null, 3]
+  default_lambda: 0.5
+  default_max_per_genre: 3
+figures_dir: data/synthetic/figures

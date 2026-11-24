@@ -149,6 +149,14 @@ def main() -> None:
                 m.fit(train_df.filter(~is_hold), train_df.filter(is_hold))
                 lst = rerank_lists(eval_df, m.predict(eval_df), ev_users, K)
                 res["ablation_lgbm_ndcg@10"][f"without_{g}"] = metrics_for(lst, targets)["ndcg@10"]
+            eval_df.with_columns(
+                pl.Series("score_lgbm", s.astype(np.float32)),
+                pl.Series("score_dcn_pos", p_pos.astype(np.float32)),
+                pl.Series("score_dcn_rating", p_rating.astype(np.float32)),
+                pl.Series(
+                    "score_dcn", (p_pos + dcfg.rating_weight * p_rating / 5.0).astype(np.float32)
+                ),
+            ).write_parquet(out_dir / f"eval_{wname}.parquet")
             for name, lst in lists.items():
                 np.save(out_dir / f"lists_{wname}_{name}.npy", lst)
             np.save(out_dir / f"users_{wname}.npy", ev_users)

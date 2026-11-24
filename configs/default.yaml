@@ -61,3 +61,10 @@ ranking:
     item_quality_age: [i_avg_rating_smoothed, i_days_since_first_rating, i_release_age_years]
     user_activity: [u_n_ratings, u_n_pos, u_mean_rating, u_days_since_last, u_days_since_first, u_n_last30d]
     user_item_genre: [x_genre_affinity_mean, x_genre_affinity_max, x_days_since_similar]
+
+rerank:
+  lambdas: [1.0, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.3]
+  genre_caps: [null, 3]
+  default_lambda: 0.8          # chosen on val; see docs/design.md (M4)
+  default_max_per_genre: 3
+figures_dir: docs/figures

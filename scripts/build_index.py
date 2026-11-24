@@ -111,7 +111,7 @@ def main() -> None:
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig("docs/figures/faiss_tradeoff.png", dpi=110)
+    fig.savefig(cfg.figures / "faiss_tradeoff.png", dpi=110)
 
 
 if __name__ == "__main__":
