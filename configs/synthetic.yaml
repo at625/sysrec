@@ -17,3 +17,13 @@ baselines:
     - {factors: 8, regularization: 0.05, alpha: 10.0}
   als_iterations: 5
   select_metric: recall@100
+
+two_tower:
+  epochs: 3
+  batch_size: 128
+  lr: 0.003
+  log_every: 0
+  model: {dim: 16, id_dim: 16, hidden: 32, history_len: 10, temperature: 0.1}
+  ablations:
+    no_logq: {logq: false}
+    mixed_negatives: {uniform_negatives: 64}
