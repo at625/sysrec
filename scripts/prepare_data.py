@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from _common import base_parser, config_from
-
 from recsys.data.prepare import prepare
 from recsys.utils.repro import PeakMemory, write_result
 

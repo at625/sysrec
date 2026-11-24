@@ -14,8 +14,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import polars as pl  # noqa: E402
-from _common import base_parser, config_from  # noqa: E402
 
+from _common import base_parser, config_from  # noqa: E402
 from recsys.data.io import scan_ratings  # noqa: E402
 from recsys.data.split import eval_targets, windows  # noqa: E402
 from recsys.utils.repro import PeakMemory, write_result  # noqa: E402

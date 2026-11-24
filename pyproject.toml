@@ -19,3 +19,6 @@ ignore = ["E501"]
 testpaths = ["tests"]
 addopts = "-q"
 markers = ["integration: needs a running service (Redis/API)", "slow: slow tests"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["recsys", "_common"]
