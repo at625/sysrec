@@ -51,11 +51,11 @@ def main() -> None:
     set_seed(cfg.seed)
     w = windows(cfg)["test"]
     out = cfg.artifacts / "serving"
-    rr = cfg.section("rerank")
+    rr = json.loads((cfg.results / "m4_rerank.json").read_text())["selected"]
     sel = json.loads((cfg.results / "m1_baselines.json").read_text())["selection"]
     stage = fit_stage(cfg, w.start)
     dcn = load_dcn(cfg.artifacts / "ranking" / "dcn_test.pt")
-    meta = build_snapshot(cfg, stage, dcn, out, sel["recent_days"])
+    meta = build_snapshot(cfg, stage, dcn, out, sel["recent_days"], rerank=rr)
 
     # Offline reference: the batch pipeline (exact retrieval, polars features, torch DCN, MMR).
     tg = eval_targets(cfg, w)
@@ -71,9 +71,9 @@ def main() -> None:
         "score",
         stage.retriever.item_emb,
         10,
-        rr["default_lambda"],
+        rr["lambda"],
         stage.retriever.item_feats.genres,
-        rr["default_max_per_genre"],
+        rr["max_per_genre"],
     )
     umap = pl.read_parquet(out / "users_map.parquet")["user_id"].to_numpy()
     np.savez(

@@ -4,6 +4,8 @@ HNSW index changes the lists. Writes results/m5_parity.json."""
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import redis
 
@@ -19,7 +21,7 @@ def main() -> None:
     cfg = config_from(args)
     snap = cfg.artifacts / "serving"
     ref = np.load(snap / "offline_reference.npz")
-    rr = cfg.section("rerank")
+    rr = json.loads((cfg.results / "m4_rerank.json").read_text())["selected"]
     r = redis.Redis.from_url(args.redis)
     out = {}
     for index in ("flat", "hnsw"):
@@ -28,8 +30,8 @@ def main() -> None:
             r,
             EngineConfig(
                 index=index,
-                mmr_lambda=rr["default_lambda"],
-                max_per_genre=rr["default_max_per_genre"],
+                mmr_lambda=rr["lambda"],
+                max_per_genre=rr["max_per_genre"],
                 candidates=cfg.section("ranking")["candidates"],
             ),
         )

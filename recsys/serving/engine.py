@@ -23,11 +23,11 @@ from recsys.rerank.mmr import mmr
 
 @dataclass
 class EngineConfig:
-    candidates: int = 200
+    candidates: int | None = None  # None -> snapshot value
     index: str = "hnsw"  # "flat" for exact (parity tests), "hnsw" for speed
     ef_search: int = 128
-    mmr_lambda: float = 0.8
-    max_per_genre: int | None = 3
+    mmr_lambda: float | None = None  # None -> value stored in the snapshot (chosen on val in M4)
+    max_per_genre: int | None = -1  # -1 -> value stored in the snapshot
     cache_item_features: bool = False  # M5 optimisation: keep item features in process memory
     threads: int = 1
 
@@ -65,6 +65,12 @@ class Engine:
         self.genre_index = {g.lower(): j for j, g in enumerate(self.meta["genre_names"])}
         self.redis = redis_client
         self.cutoff = int(self.meta["cutoff"])
+        if self.cfg.candidates is None:
+            self.cfg.candidates = int(self.meta.get("candidates", 200))
+        if self.cfg.mmr_lambda is None:
+            self.cfg.mmr_lambda = float(self.meta.get("mmr_lambda", 1.0))
+        if self.cfg.max_per_genre == -1:
+            self.cfg.max_per_genre = self.meta.get("max_per_genre")
         self.K = self.cfg.candidates
 
     # ---------------- stages ----------------

@@ -60,7 +60,9 @@ def export_onnx(module, args: tuple, path: Path, names: list[str]) -> None:
         )
 
 
-def build_snapshot(cfg, stage, dcn, out: Path, fallback_days: int) -> dict:
+def build_snapshot(
+    cfg, stage, dcn, out: Path, fallback_days: int, rerank: dict | None = None
+) -> dict:
     """Export everything the online engine needs, as of `stage.ctx.cutoff`."""
     import faiss
     import torch
@@ -119,6 +121,9 @@ def build_snapshot(cfg, stage, dcn, out: Path, fallback_days: int) -> dict:
         "fallback_days": fallback_days,
         "n_items": ctx.n_items,
         "dcn_rating_weight": dcn.cfg.rating_weight,
+        "candidates": cfg.section("ranking").get("candidates", 200),
+        "mmr_lambda": (rerank or {}).get("lambda", 1.0),
+        "max_per_genre": (rerank or {}).get("max_per_genre"),
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
 

@@ -9,6 +9,8 @@ WORKDIR /app
 COPY requirements-serving.txt .
 RUN HTTPS_PROXY=$HTTPS_PROXY pip install --no-cache-dir -r requirements-serving.txt
 COPY recsys/ recsys/
+# One BLAS/OpenMP thread per worker: parallelism comes from worker processes, not threads.
+ENV OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 ENV SNAPSHOT_DIR=/snapshot REDIS_URL=redis://redis:6379/0 INDEX=hnsw CACHE_ITEM_FEATURES=1
 EXPOSE 8000
 CMD ["uvicorn", "recsys.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

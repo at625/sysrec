@@ -60,9 +60,30 @@ def main() -> None:
                 )
                 rows.append(r)
                 print(wname, r, flush=True)
-                if lam == sec.get("default_lambda") and cap == sec.get("default_max_per_genre"):
-                    np.save(rd / f"lists_{wname}_dcn_mmr.npy", lists)
         out[wname] = rows
+        if wname == "val":
+            # Default operating point: the most diverse setting whose val NDCG@10 is within
+            # `select_max_ndcg_drop` (relative) of plain ranking (lambda=1, no genre cap).
+            base = next(r for r in rows if r["lambda"] == 1.0 and r["max_per_genre"] is None)[
+                "ndcg@10"
+            ]
+            ok = [
+                r
+                for r in rows
+                if r["ndcg@10"] >= (1 - sec.get("select_max_ndcg_drop", 0.01)) * base
+            ]
+            best = max(ok, key=lambda r: r["ild@10"])
+            out["selected"] = {
+                "lambda": best["lambda"],
+                "max_per_genre": best["max_per_genre"],
+                "rule": f"max ILD@10 with val NDCG@10 >= {1 - sec.get('select_max_ndcg_drop', 0.01):.2f} x no-MMR",
+            }
+            print("selected", out["selected"], flush=True)
+        sel = out["selected"]
+        lists = rerank_all(
+            df, users, args.score, emb, 10, sel["lambda"], genres, sel["max_per_genre"]
+        )
+        np.save(rd / f"lists_{wname}_dcn_mmr.npy", lists)
 
     fig, ax = plt.subplots(figsize=(7, 5))
     for cap in caps:

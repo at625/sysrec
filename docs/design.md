@@ -69,3 +69,57 @@ model differences come from warm users; `metrics_warm` in the results isolates t
 
 **Protocol.** Hyperparameters are chosen on val (models fit on train). For test, the chosen config is
 refit on train + val. Nothing is tuned on test.
+
+## M2: Two-tower retrieval and ANN
+
+**Model** (`recsys/retrieval/two_tower.py`).
+- *User tower*: user-ID embedding (row 0 is the unknown-user bucket) + mean-pooled ID embeddings
+  of the user's last 50 positives + two point-in-time stats (log #ratings so far, mean rating so
+  far) -> 256-unit MLP -> 64-d, L2-normalised.
+- *Item tower*: item-ID embedding (shared with the history pooling) + genre multi-hot + release-year
+  bucket embedding + frozen 384-d MiniLM embedding of "title | genres | top-10 tags" -> MLP -> 64-d,
+  L2-normalised. Tags are only those applied before the cutoff.
+- Score = cosine / temperature (0.05).
+
+**Training** (`recsys/retrieval/train_two_tower.py`). Each positive (rating >= 4) in the last 3
+years before the cutoff is one example (about 1.8M for val). Its history is the user's *earlier*
+positives (`build_sequences` + `gather_history`), so the target never leaks into its own input.
+Loss = in-batch sampled softmax (batch 4096) with logQ correction, where q is the item's frequency
+among training targets; other in-batch columns holding the same item as the row's positive are
+masked so they don't count as negatives. Adam, lr 1e-3, 5 epochs, about 2.0 to 2.5 minutes per epoch
+on the 4-vCPU cloud machine (per-epoch times in `results/m2_two_tower.json`).
+
+**Results (test window; numbers from `results/m2_two_tower.json`, `results/m1_baselines.json`).**
+
+| model | Recall@100 | NDCG@10 |
+|---|---|---|
+| recent popular (30d) | 0.284 | 0.172 |
+| ALS (3y history) | 0.279 | 0.159 |
+| two-tower | **0.298** | 0.162 |
+
+The two-tower model beats ALS and recent popularity on Recall@100, the metric that matters for a
+candidate generator, but not on NDCG@10: it is a good *recall* model and a mediocre *ordering*
+model, which is exactly the job split between retrieval and ranking.
+
+**Ablations** (`results/m2_ablations.json`, test Recall@100):
+- logQ off: 0.132 (from 0.298). Without the correction, in-batch negatives are sampled in proportion
+  to popularity, so the model learns to push popular items down and recommends the long tail. This is
+  the single most important trick in the model.
+- Mixed negatives (in-batch + 4096 uniform per batch, with the mixture's q in the correction):
+  0.301, a small gain at about 2x the item-tower compute per step. Kept off by default for speed.
+
+**Val tuning** (`results/m2_tuning.json`, run with 3 epochs as the base): 5 epochs +0.003 Recall@100
+(adopted); 6 years of targets +0.004 but 2x training time (not adopted); temperature 0.1 -0.006;
+dropping the user-ID embedding -0.005. No setting was evaluated on test before being chosen.
+
+**FAISS** (`results/m2_faiss.json`, `docs/figures/faiss_tradeoff.png`; 87,585 items, 64-d, 2,000
+test-user queries, batch 1, 1 thread, on the cloud Xeon). Exact `IndexFlatIP` takes ~0.85 ms p50.
+HNSW (M=32) at efSearch=128 reaches 0.988 recall@100 vs exact at 0.07 ms p50 (about 12x faster);
+IVF-256 at nprobe=16 gets 0.977 at 0.05 ms. At this catalog size exact search is already cheap, so
+the ANN choice matters less than it would at 10M items; the benchmark is there to show the trade-off
+curve and the knob (efSearch / nprobe) you'd turn. Serving uses HNSW with efSearch raised to cover
+the over-fetch needed to drop already-seen items.
+
+**Alternatives considered.** Attention pooling or a SASRec user tower (stretch goal); training on
+all 28 years of history (slower, and stale tastes hurt ALS); sampled softmax with a separate
+popularity-based sampler instead of in-batch (more machinery for similar results).

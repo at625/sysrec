@@ -1,7 +1,7 @@
 """FastAPI service: GET /recommend, GET /health, GET /metrics (Prometheus).
 
 Config via env vars: SNAPSHOT_DIR, REDIS_URL, INDEX (hnsw|flat), CACHE_ITEM_FEATURES (0|1),
-MMR_LAMBDA, MAX_PER_GENRE, CANDIDATES.
+MMR_LAMBDA, MAX_PER_GENRE, CANDIDATES (unset = snapshot defaults).
 The pipeline is CPU-bound, so requests run in a thread pool (FastAPI does this for sync endpoints)
 and the event loop stays free for /health and /metrics.
 """
@@ -28,12 +28,15 @@ REQUESTS = Counter("recsys_requests_total", "Requests by result source", ["sourc
 
 
 def _env_engine_config() -> EngineConfig:
-    mpg = os.environ.get("MAX_PER_GENRE", "3")
+    """Env overrides; anything unset uses the values stored in the snapshot."""
+    mpg = os.environ.get("MAX_PER_GENRE")
+    lam = os.environ.get("MMR_LAMBDA")
+    cand = os.environ.get("CANDIDATES")
     return EngineConfig(
-        candidates=int(os.environ.get("CANDIDATES", "200")),
+        candidates=int(cand) if cand else None,
         index=os.environ.get("INDEX", "hnsw"),
-        mmr_lambda=float(os.environ.get("MMR_LAMBDA", "0.8")),
-        max_per_genre=None if mpg in ("", "none", "None") else int(mpg),
+        mmr_lambda=float(lam) if lam else None,
+        max_per_genre=-1 if mpg is None else (None if mpg.lower() in ("", "none") else int(mpg)),
         cache_item_features=os.environ.get("CACHE_ITEM_FEATURES", "0") == "1",
     )
 

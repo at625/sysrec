@@ -41,6 +41,5 @@ ranking:
 rerank:
   lambdas: [1.0, 0.5]
   genre_caps: [null, 3]
-  default_lambda: 0.5
-  default_max_per_genre: 3
+  select_max_ndcg_drop: 0.05
 figures_dir: data/synthetic/figures

@@ -3,6 +3,7 @@ services:
   redis:
     image: redis:7.4-alpine
     command: ["redis-server", "--maxmemory", "1500mb", "--maxmemory-policy", "noeviction", "--save", ""]
+    ports: ["6379:6379"]  # exposed for scripts/check_parity.py and debugging
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -21,6 +22,7 @@ services:
     environment:
       INDEX: "${INDEX:-hnsw}"
       CACHE_ITEM_FEATURES: "${CACHE_ITEM_FEATURES:-1}"
+    command: ["uvicorn", "recsys.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${WORKERS:-2}"]
     volumes: ["./artifacts/serving:/snapshot:ro"]
     ports: ["8000:8000"]
     depends_on:

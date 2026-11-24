@@ -70,6 +70,5 @@ ranking:
 rerank:
   lambdas: [1.0, 0.95, 0.9, 0.8, 0.7, 0.6, 0.5, 0.3]
   genre_caps: [null, 3]
-  default_lambda: 0.8          # chosen on val; see docs/design.md (M4)
-  default_max_per_genre: 3
+  select_max_ndcg_drop: 0.01   # default = most diverse point within 1% of val NDCG@10 (results/m4_rerank.json "selected")
 figures_dir: docs/figures
