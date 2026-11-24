@@ -43,7 +43,11 @@ def set_seed(seed: int) -> None:
 def git_commit() -> str:
     try:
         sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
-        dirty = subprocess.call(["git", "diff", "--quiet", "HEAD"], stderr=subprocess.DEVNULL)
+        # Outputs (results/, docs/) don't count as "dirty"; code and configs do.
+        dirty = subprocess.call(
+            ["git", "diff", "--quiet", "HEAD", "--", ".", ":!results", ":!docs"],
+            stderr=subprocess.DEVNULL,
+        )
         return sha.decode().strip() + ("-dirty" if dirty else "")
     except Exception:
         return "unknown"
