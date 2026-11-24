@@ -22,7 +22,7 @@ services:
     environment:
       INDEX: "${INDEX:-hnsw}"
       CACHE_ITEM_FEATURES: "${CACHE_ITEM_FEATURES:-1}"
-    command: ["uvicorn", "recsys.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${WORKERS:-2}"]
+    command: ["uvicorn", "recsys.serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${WORKERS:-3}"]
     volumes: ["./artifacts/serving:/snapshot:ro"]
     ports: ["8000:8000"]
     depends_on:

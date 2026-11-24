@@ -1,6 +1,7 @@
 # Design notes
 
-One section per milestone: what was built, why, alternatives considered, and trade-offs.
+One section per milestone: what was built, why, alternatives considered, and trade-offs. All
+numbers come from `results/*.json`; hardware for timings is a 4-vCPU Intel Xeon cloud VM without a GPU.
 
 ## M0: Data and the time-based split
 
@@ -123,3 +124,139 @@ the over-fetch needed to drop already-seen items.
 **Alternatives considered.** Attention pooling or a SASRec user tower (stretch goal); training on
 all 28 years of history (slower, and stale tastes hurt ALS); sampled softmax with a separate
 popularity-based sampler instead of in-batch (more machinery for similar results).
+
+## M3: Point-in-time features and ranking
+
+**Training data** (`recsys/ranking/data.py`, `scripts/train_rankers.py`). The ranker that is
+evaluated on window W is trained on a *snapshot* just before W:
+
+| | retrieval models + features computed on | labels from |
+|---|---|---|
+| ranker for val | history < 2022-12-31 | 2022-12-31 .. 2023-04-01 |
+| ranker for test | history < 2023-04-01 | 2023-04-01 .. 2023-07-01 (the val window) |
+| test evaluation | history < 2023-07-01 | test window (metrics only) |
+
+For every user with a positive in the label window, the two-tower model's top 200 candidates become
+examples (about 0.8 to 0.9M rows per snapshot), labelled positive if the user rated the item >= 4 in the
+label window. The negatives are therefore *hard*: items the retriever already thinks are relevant.
+Retrieval only covers 42% of the test positives in its top 200 (`candidate_recall@K`), which caps
+what any ranker can do.
+
+**Features** (`recsys/features/pit.py`), all computed from history strictly before the snapshot
+cutoff, and tested by perturbing every row at or after the cutoff and checking the feature frame is
+byte-identical (`tests/test_features.py`):
+retrieval score and rank; ALS user-item dot product; user activity (counts, mean rating, recency,
+last-30-day activity); item popularity over 7/30/365 days and all time; smoothed average rating;
+days since the item's first rating; release age; user-genre affinity (mean and max share of the
+user's positives in the item's genres); days since the user last liked an item of the same genre.
+They are written to Parquet (`artifacts/ranking/*.parquet`) and, for serving, to Redis.
+
+**Rankers.**
+- LightGBM LambdaRank, one query per user, early stopping on 10% of training users.
+- DCN-v2 (3 full-rank cross layers + 256-128 MLP) with two heads: P(positive) (BCE) and predicted
+  rating (MSE, only on candidates the user actually rated in the label window). Inputs: signed
+  log1p for count features, standardisation, explicit missing-indicator per feature. Final score
+  = P(pos) + w * rating / 5, with w chosen on val from {0, 0.1, 0.2, 0.5, 1.0}.
+
+**Results** (`results/m3_ranking.json`, test window, same 4,726 users, top 10 from the same 200 candidates):
+
+| ordering | NDCG@10 | Recall@10 |
+|---|---|---|
+| retrieval only (two-tower) | 0.162 | 0.070 |
+| LightGBM LambdaRank | 0.206 | 0.095 |
+| DCN-v2 multi-task | **0.210** | **0.098** |
+
+Both rankers beat retrieval-only ordering by about 30% relative NDCG@10, and both beat the recent-popular
+baseline (0.172).
+
+**Honest findings.**
+- *The rating head does not help ranking here.* Val picked w = 0 (rating head ignored at inference),
+  and a single-task DCN (no rating loss) scores 0.188 on val (same as multi-task) and 0.212 on test. The
+  rating task is still useful as a product signal (RMSE 0.86 on rated candidates), but it isn't an
+  accuracy lever for the top-10. A likely reason: only ~8% of candidate rows have a rating label.
+- *Feature importance* (LightGBM gain, test ranker): retrieval rank 23%, ALS score 11%, 7-day and
+  30-day popularity 7% and 6%. Group ablations (retrain without a group, test NDCG@10): removing user
+  activity costs the most (0.206 to 0.185), then item popularity (to 0.195) and retrieval features (to 0.197).
+  Popularity *trend* features matter because the eval window is dominated by what is new this quarter.
+- *Why such a big jump from ranking?* I checked for leakage first: features only read
+  `ctx.history` (asserted), the perturbation test passes, and the labels come from a window the
+  features never see. The gain is plausible because the two-tower model has no notion of *time*
+  (it doesn't know what is trending this month), while the ranker sees recent popularity and
+  recency. This is also why recent-popular is such a strong baseline.
+
+## M4: Diversity re-ranking
+
+**What** (`recsys/rerank/mmr.py`). Greedy MMR on the DCN scores (min-max normalised per user):
+pick the item maximising lambda * relevance - (1 - lambda) * max cosine similarity to already-picked
+items, using two-tower item embeddings. Optional business rule: at most N items per genre in the
+top 10. Metrics: intra-list diversity (1 - mean pairwise cosine), genre coverage per list, catalog
+coverage, NDCG@10 and Recall@10.
+
+**Operating point** (chosen on val by a pre-declared rule in `configs/default.yaml`: the most diverse
+setting whose val NDCG@10 is within 1% of no re-ranking): **lambda = 0.8, no genre cap**. On val it
+raises ILD@10 from 0.318 to 0.350 (+10%) with NDCG@10 unchanged (0.1877 vs 0.1877). On test (M6) NDCG@10
+moves by -0.0003 (paired 95% CI [-0.0009, 0.0005]) while ILD@10 rises from 0.300 to 0.321.
+The genre cap (max 3 per genre) costs about 9% NDCG@10 on val for +0.08 genre coverage, so it is
+implemented and configurable but off by default. Curve: `docs/figures/rerank_tradeoff.png`.
+
+**Trade-off.** Offline NDCG can only penalise diversity: it rewards predicting what users did when
+shown a non-diverse system. The real value of diversity (exploration, satisfaction, less filter-bubble)
+needs online measurement, so the chosen point is "free diversity" by the offline metric.
+
+## M5: Online serving
+
+**Design** (`recsys/serving/`; walkthrough in `docs/code-walkthrough.md`). A snapshot is built as of
+the test-window start: ONNX user tower + ONNX DCN-v2 (with standardisation baked in), FAISS
+flat + HNSW indexes, item arrays, and per-user records. A one-shot `loader` container pushes user
+records (200,948 users: history, stats, genre profile, ALS vector, seen items) and item feature
+vectors into Redis (`maxmemory` 1.5 GB; measured usage 380 MB). The FastAPI service runs retrieval -> feature fetch ->
+ranking -> MMR, exposing `/health` and Prometheus `/metrics` with a per-stage histogram.
+
+**Cold start.** Unknown user IDs get recent-popular items, or genre-popular items with
+`?genres=Comedy,Horror`. Known users with no positives get recent-popular *candidates* that are
+still ranked. Items unseen before the cutoff have no ID-embedding training signal but still get
+embeddings from their genre/year/text features; unknown item IDs never reach the model because the
+history is stored as validated indices in the snapshot.
+
+**Parity** (`results/m5_parity.json`). With the exact index, online top-10 lists equal the offline
+batch pipeline's lists for **300/300** sampled users; with HNSW, 99% identical, 99.9% top-10 overlap.
+Parity is by construction: online code calls the same feature functions and transform as offline.
+
+**Load test** (`results/m5_latency.json`, `docs/figures/latency.png`; open-loop Poisson load,
+30 s per rate, cloud VM with 4 vCPU Intel Xeon @ 2.3 GHz, load generator on the same VM, so absolute
+numbers are pessimistic):
+
+| config | max sustained rate tested | p50 / p95 / p99 at that rate |
+|---|---|---|
+| baseline: item features from Redis, 1 worker | 100 req/s (saturates at ~119 at 200 offered) | 9.1 / 24.6 / 37.8 ms |
+| #1 item features cached in-process, 1 worker | 200 req/s | 11.2 / 46.8 / 79.7 ms |
+| #2 + 3 workers, 1 BLAS thread each | 300 req/s (saturates at 400) | 5.7 / 12.6 / 19.6 ms |
+
+Optimisation #1 removed the Redis `MGET` of 200 item keys per request (item_features stage p50 from
+1.06 ms to 0.03 ms), lifting single-worker throughput from ~119 to >= 200 req/s. The first attempt at
+#2 (3 workers) made things *worse*: each worker's OpenBLAS used 4 threads, so 12 threads fought over 4
+cores and MMR's small matrix product went from 0.4 ms to 11 to 60 ms. Pinning BLAS to one thread per
+worker fixed it (recorded as `attempt2_3workers_blas_oversubscribed` in the results).
+
+## M6: Offline replay "A/B" simulation
+
+`scripts/run_ab_sim.py` scores five variants on the same 4,726 test users, with 2,000-sample
+bootstrap 95% CIs over users and paired bootstrap tests (`results/m6_ab_sim.json`,
+`docs/figures/ab_sim.png`):
+
+| variant | NDCG@10 [95% CI] | Recall@10 [95% CI] | ILD@10 |
+|---|---|---|---|
+| A recent-popular | 0.172 [0.165, 0.178] | 0.076 [0.072, 0.081] | 0.369 |
+| B ALS | 0.159 [0.153, 0.166] | 0.067 [0.063, 0.071] | 0.383 |
+| C two-tower | 0.162 [0.155, 0.168] | 0.070 [0.066, 0.074] | 0.313 |
+| D two-tower + DCN-v2 | 0.210 [0.203, 0.218] | 0.098 [0.093, 0.103] | 0.300 |
+| E D + MMR | 0.210 [0.203, 0.218] | 0.098 [0.093, 0.103] | 0.321 |
+
+Paired: D vs A +0.039 NDCG@10 (+22.5% relative, CI [0.034, 0.043], p < 0.001); D vs C +0.049
+(+30%); E vs D -0.0003 (CI [-0.0009, 0.0005], not significant).
+
+**What this is not.** It is a replay of logged behaviour, not an experiment. It cannot capture:
+feedback loops (users only rate what the old system showed them; a new system changes that);
+position bias and presentation effects; whether users actually like more diverse lists; novelty
+effects; long-term retention. Users and items are not randomised, and the logged data reflects
+MovieLens' own recommender. A real launch would need an online A/B test with guardrail metrics.
