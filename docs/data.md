@@ -28,4 +28,4 @@ Cutoffs live in `configs/default.yaml` (`data.val_start`, `data.test_start`, `da
 
 *Warm* users have at least one interaction before the window starts; *cold* users appear for the first time inside the window. *Cold-start items* are items rated in the window that were never rated before the window start. Neither can be scored by ID embeddings alone; see `docs/design.md`.
 
-Report computed with peak RSS 0.79 GB in 2.4 s.
+Report computed with peak RSS 0.79 GB in 2.3 s.
