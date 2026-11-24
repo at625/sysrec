@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "dataset": "MovieLens-32M (ml-32m.zip, md5 d472be332d4daa821edc399621853b57)",
+    "split": {
+      "val_start": 1680307200,
+      "test_start": 1688169600,
+      "test_end": 1697155200,
+      "positive_threshold": 4.0,
+      "user_fraction": 1.0
+    },
+    "seed": 42,
+    "config": "configs/default.yaml",
+    "git_commit": "unknown",
+    "hardware": {
+      "platform": "Linux-6.18.44-fc-v819-x86_64-with-glibc2.39",
+      "machine": "x86_64",
+      "cpu_count": 4,
+      "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+      "ram_gb": 15.7,
+      "cuda": null,
+      "mps": false
+    },
+    "libraries": {
+      "python": "3.11.18",
+      "torch": "2.15.0",
+      "polars": "2.2.0",
+      "numpy": "2.4.6",
+      "faiss-cpu": "1.16.0",
+      "lightgbm": "4.7.0",
+      "implicit": "0.7.3",
+      "onnxruntime": "1.32.0",
+      "scikit-learn": "1.9.1",
+      "sentence-transformers": "6.3.0",
+      "fastapi": "0.165.0",
+      "redis": "8.2.0"
+    },
+    "timestamp_utc": "2026-11-24T20:34:41Z"
+  },
+  "interactions": 32000204,
+  "users": 200948,
+  "items_rated": 84432,
+  "sparsity": 0.9981139118693746,
+  "positive_fraction": 0.4980665435757847,
+  "time_range": [
+    "1995-01-09 11:46 UTC",
+    "2023-10-13 02:29 UTC"
+  ],
+  "rating_distribution": {
+    "0.5": 525132,
+    "1.0": 946675,
+    "1.5": 531063,
+    "2.0": 2028622,
+    "2.5": 1685386,
+    "3.0": 6054990,
+    "3.5": 4290105,
+    "4.0": 8367654,
+    "4.5": 2974000,
+    "5.0": 4596577
+  },
+  "user_activity": {
+    "0.5": 73.0,
+    "0.9": 364.0,
+    "0.99": 1290.0,
+    "min": 20,
+    "max": 33332
+  },
+  "item_popularity": {
+    "0.5": 5.0,
+    "0.9": 248.90000000000873,
+    "0.99": 9263.140000000014,
+    "min": 1,
+    "max": 102929
+  },
+  "top1pct_items_share_of_interactions": 0.5484963158359866,
+  "split": {
+    "train": {
+      "start": "1995-01-09 11:46 UTC",
+      "end_exclusive": "2023-04-01 00:00 UTC",
+      "interactions": 31463836,
+      "users": 198679,
+      "items": 81318
+    },
+    "val": {
+      "start": "2023-04-01 00:00 UTC",
+      "end_exclusive": "2023-07-01 00:00 UTC",
+      "interactions": 221257,
+      "eval_users_with_positive": 4076,
+      "eval_users_warm": 3131,
+      "eval_users_cold": 945,
+      "positive_targets": 103862,
+      "items_in_window": 20197,
+      "cold_start_items": 1190,
+      "target_share_on_cold_items": 0.012
+    },
+    "test": {
+      "start": "2023-07-01 00:00 UTC",
+      "end_exclusive": "2023-10-13 00:00 UTC",
+      "interactions": 315003,
+      "eval_users_with_positive": 4726,
+      "eval_users_warm": 3405,
+      "eval_users_cold": 1321,
+      "positive_targets": 154923,
+      "items_in_window": 24505,
+      "cold_start_items": 1924,
+      "target_share_on_cold_items": 0.0189
+    }
+  },
+  "peak_rss_gb": 0.79,
+  "wall_seconds": 2.4
+}

@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "dataset": "MovieLens-32M (ml-32m.zip, md5 d472be332d4daa821edc399621853b57)",
+    "split": {
+      "val_start": 1680307200,
+      "test_start": 1688169600,
+      "test_end": 1697155200,
+      "positive_threshold": 4.0,
+      "user_fraction": 1.0
+    },
+    "seed": 42,
+    "config": "configs/default.yaml",
+    "git_commit": "unknown",
+    "hardware": {
+      "platform": "Linux-6.18.44-fc-v819-x86_64-with-glibc2.39",
+      "machine": "x86_64",
+      "cpu_count": 4,
+      "cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+      "ram_gb": 15.7,
+      "cuda": null,
+      "mps": false
+    },
+    "libraries": {
+      "python": "3.11.18",
+      "torch": "2.15.0",
+      "polars": "2.2.0",
+      "numpy": "2.4.6",
+      "faiss-cpu": "1.16.0",
+      "lightgbm": "4.7.0",
+      "implicit": "0.7.3",
+      "onnxruntime": "1.32.0",
+      "scikit-learn": "1.9.1",
+      "sentence-transformers": "6.3.0",
+      "fastapi": "0.165.0",
+      "redis": "8.2.0"
+    },
+    "timestamp_utc": "2026-11-24T20:33:48Z"
+  },
+  "prepare": {
+    "n_users": 200948,
+    "n_items": 87585,
+    "n_ratings": 32000204,
+    "peak_rss_gb": 3.21,
+    "wall_seconds": 5.2
+  }
+}

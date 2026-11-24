@@ -1,0 +1,21 @@
+[project]
+name = "recsys"
+version = "0.1.0"
+description = "Multi-stage recommender (two-tower retrieval -> DCN-v2 ranking -> MMR re-ranking -> FastAPI serving) on MovieLens-32M"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+include = ["recsys*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["integration: needs a running service (Redis/API)", "slow: slow tests"]

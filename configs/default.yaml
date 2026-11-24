@@ -1,0 +1,16 @@
+# Default experiment config. Every script takes --config; values here are the single source of truth.
+seed: 42
+
+data:
+  raw_dir: data/raw/ml-32m
+  processed_dir: data/processed
+  positive_threshold: 4.0        # rating >= this is an implicit positive
+  # Global time cutoffs (UTC, unix seconds). train < val_start <= val < test_start <= test.
+  val_start: 1680307200          # 2023-04-01T00:00:00Z
+  test_start: 1688169600         # 2023-07-01T00:00:00Z
+  test_end: 1697155200           # 2023-10-13T00:00:00Z (exclusive; dataset ends 2023-10-13 02:29)
+  # Optional user subsample for fast iteration (fraction of users, hashed so it is stable). 1.0 = all.
+  user_fraction: 1.0
+
+artifacts_dir: artifacts
+results_dir: results
