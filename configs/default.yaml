@@ -14,3 +14,13 @@ data:
 
 artifacts_dir: artifacts
 results_dir: results
+
+baselines:
+  recent_days_grid: [7, 30, 90, 365]
+  als_grid:                       # tuned on val by recall@100, best refit on train+val for test
+    - {factors: 64, regularization: 0.05, alpha: 10.0}
+    - {factors: 128, regularization: 0.05, alpha: 10.0}
+    - {factors: 128, regularization: 0.5, alpha: 20.0}
+    - {factors: 256, regularization: 0.5, alpha: 20.0}
+  als_iterations: 15
+  select_metric: recall@100

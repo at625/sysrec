@@ -10,3 +10,10 @@ data:
   user_fraction: 1.0
 artifacts_dir: data/synthetic/artifacts
 results_dir: data/synthetic/results
+
+baselines:
+  recent_days_grid: [30, 365]
+  als_grid:
+    - {factors: 8, regularization: 0.05, alpha: 10.0}
+  als_iterations: 5
+  select_metric: recall@100
