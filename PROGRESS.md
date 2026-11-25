@@ -44,6 +44,13 @@ Environment quirks:
 - DCN-v2 head weight chosen on val = 0.0 (rating head unused at inference; documented in design.md).
 - Load generator runs on the same 4-vCPU VM as the service, so latency numbers are pessimistic.
 
+## Saved artifacts
+
+Trained models, embeddings, ranking frames and the serving snapshot are in Git LFS on the
+`artifacts` branch (bundles + SHA256SUMS); restore with `python scripts/fetch_artifacts.py [--all]`
+(verified byte-identical on 2026-11-25). A copy is also in the Claude project files under
+`sysrec-artifacts-v1/`. GitHub Releases could not be created from the cloud session (403).
+
 ## Next (stretch goals, only if asked)
 
 - Candidate mixer to raise candidate recall (currently 42% at 200).

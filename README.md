@@ -88,7 +88,19 @@ python scripts/env_check.py
 scripts/reproduce.sh            # every step in order; a few hours on 4 vCPU (each results file records its wall time)
 ```
 
-Serving only (after `scripts/build_serving.py` has produced `artifacts/serving/`):
+**Skip training:** the trained models and feature snapshots are stored with Git LFS on the
+[`artifacts` branch](https://github.com/at625/sysrec/tree/artifacts) (1.9 GB, SHA-256 checked):
+
+```bash
+python scripts/fetch_artifacts.py         # serving snapshot only (256 MB): enough for docker compose
+python scripts/fetch_artifacts.py --all   # + ranking data/models, embeddings, final two-tower checkpoints
+```
+
+With `--all`, `train_rankers.py` and `build_serving.py` reuse the downloaded two-tower checkpoints
+instead of retraining, and `run_rerank.py` / `run_ab_sim.py` run directly. The processed Parquet is
+rebuilt in seconds by `download_data.py && prepare_data.py`.
+
+Serving only (after `fetch_artifacts.py` or `scripts/build_serving.py` has produced `artifacts/serving/`):
 
 ```bash
 docker compose up --build       # redis + one-shot loader + api on :8000
