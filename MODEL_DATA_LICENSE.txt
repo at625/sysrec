@@ -1,0 +1,5 @@
+These artifacts (model weights, embeddings, feature snapshots, ranking frames) are derived from the
+MovieLens 32M dataset (F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets:
+History and Context. ACM TiiS 5, 4: 19). They are redistributed under the same conditions as the
+dataset's license (see ml-32m/README.txt from GroupLens): non-commercial use only, no endorsement
+by GroupLens/University of Minnesota, and the dataset must be acknowledged in any publication.
